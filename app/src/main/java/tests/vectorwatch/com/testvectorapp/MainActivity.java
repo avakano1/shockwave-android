@@ -19,9 +19,16 @@ import com.google.gson.Gson;
 
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Vector;
+import android.content.res.Resources;
+import java.io.InputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -41,6 +48,24 @@ public class MainActivity extends ActionBarActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
+		Resources res = getResources();
+		InputStream in_s = res.openRawResource(R.raw.handshake_vector);
+		BufferedReader br = new BufferedReader(new InputStreamReader(in_s));
+		String readLine = null;
+		try {
+			// While the BufferedReader readLine is not null
+			while ((readLine = br.readLine()) != null) {
+				Log.d("TEXT", readLine);
+			}
+
+// Close the InputStream and BufferedReader
+			in_s.close();
+			br.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
 		setContentView(R.layout.activity_main);
 		dataText = (TextView) findViewById(R.id.data);
@@ -185,6 +210,43 @@ public class MainActivity extends ActionBarActivity {
 
 	}
 
+	class Acc
+	{
+		public int x,y,z;
+
+		public Acc(int x, int y, int z) {
+			this.x = x;
+			this.y = y;
+			this.z = z;
+		}
+	}
+
+	//helper functions
+	boolean isSmall(int val)
+	{
+		if(val> -75 && val < 75)
+			return true;
+		else
+			return false;
+	}
+
+	boolean isLarge(int val)
+	{
+		if(val> 150 || val < -150)
+			return true;
+		else
+			return false;
+	}
+
+	boolean isShake(int val)
+	{
+		if(val> 300 || val < -300)
+			return true;
+		else
+			return false;
+	}
+
+	List<Acc> val=new ArrayList<Acc>();
 	// handler for received Intents for the "my-event" event
 	private BroadcastReceiver mVectorEventReceiver = new BroadcastReceiver() {
 		@Override
@@ -193,13 +255,65 @@ public class MainActivity extends ActionBarActivity {
 
 			String event = intent.getStringExtra("EVENT_TYPE");
 
+			boolean isHandShake=false;
 			if(event.equals("ACCELEROMETER_DATA")) {
 				int x = intent.getIntExtra("X", -10000);
 				int y = intent.getIntExtra("Y", -10000);
 				int z = intent.getIntExtra("Z", -10000);
-
-				String dataToSend = "   X:" + x + " " + "Y:" + y + " " + "Z:" + z;
+				int kk = intent.describeContents();
+				SimpleDateFormat s = new SimpleDateFormat("hh mm ss SSS");
+				String format = s.format(new Date());
+				String dataToSend = format +  "   X:" + x + " " + "Y:" + y + " " + "Z:" + z;
 				dataText.setText(dataToSend);
+
+				if(val.size()==10)
+					val.remove(0);
+
+				val.add(new Acc(x,y,z));
+
+				Log.d("watch", "List size:"  + val.size());
+
+
+				if(val.size()>=3)
+				{
+					int valSize=val.size();
+					for(int i=0;i<valSize;++i)
+					{
+						if (isShake(val.get(i).x)) {
+							isHandShake = true;
+							break;
+						}
+
+					}
+				}
+
+//				if(val.size()>=3 && isLarge(val.get(0).y) && isSmall(val.get(1).y))
+//				{
+//					int valSize=val.size();
+//					for(int i=0;i<valSize;++i)
+//					{
+//						if(isSmall(val.get(i).y))
+//						{
+//							for(int j=i+1;j<valSize;++j)
+//							{
+//								if (isShake(val.get(i).x)) {
+//									isHandShake = true;
+//									break;
+//								}
+//							}
+//							if(isHandShake)
+//								break;
+//						}
+//					}
+//				}
+
+				if(isHandShake)
+				{
+					//TODO
+					val.clear();
+					Log.d("watch", "this was a handshake *****************************");
+				}
+
 
 				if (isLogging) {
 					Log.d("receiver", dataToSend);
